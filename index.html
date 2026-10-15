@@ -64,6 +64,7 @@ button.on{background:#16a34a;border-color:#16a34a;color:#fff}
 #spl{font-size:18px;font-weight:800;letter-spacing:.15em;color:var(--c1)}
 #spi{display:block;margin:6px auto;max-width:300px;max-height:130px;transition:opacity .3s}
 #spn{font-size:18px;font-weight:600}
+#sp.emp{opacity:.55}
 </style></head>
 <body>
 <div id="ctl">
@@ -89,7 +90,7 @@ button.on{background:#16a34a;border-color:#16a34a;color:#fff}
     <div class="row"><button id="ts">▶ Iniciar</button><button id="tp">⏸ Pausa</button><button id="tr">⟲ Reiniciar</button></div></div>
    <div class="card"><h2>Encuesta / votación</h2><label>Pregunta</label><input data-k="poll.q">
     <div id="pl"></div><div class="row"><button id="pa">+ Opción</button><button id="pz">Votos a 0</button></div></div>
-   <div class="card"><h2>Auspiciadores</h2><label>Etiqueta</label><input data-k="spons.label"><label>Segundos por logo</label><input type="number" min="2" data-k="spons.secs"><label>Subir logos (varios a la vez)</label><input type="file" id="sf" accept="image/*" multiple><div class="row"><input id="suu" placeholder="o enlace de imagen https://..."><button id="su">Agregar</button></div><div id="sl"></div></div>
+   <div class="card"><h2>Auspiciadores</h2><label>Etiqueta</label><input data-k="spons.label"><label>Segundos por logo</label><input type="number" min="2" data-k="spons.secs"><label>Subir logos (varios a la vez)</label><input type="file" id="sf" accept="image/*" multiple><div class="row"><input id="suu" placeholder="o enlace de imagen https://..."><button id="su">Agregar</button></div><div class="small" id="ss" style="margin:6px 0"></div><div id="sl"></div></div>
   </div>
  </div>
 </div>
@@ -129,7 +130,7 @@ function fit(el,box){const s=box.clientWidth/1920;el.style.transform='scale('+s+
 /* ---------- Salida ---------- */
 let lastTk='',lastPoll='',spI=0,spT=Date.now();
 function showSp(){const L=S.spons.list.filter(s=>s.img);if(!L.length)return;spI%=L.length;const s=L[spI],im=$('spi');$('spl').textContent=S.spons.label||'';$('spn').textContent=s.name||'';if(im.getAttribute('src')!==s.img){im.style.opacity=0;setTimeout(()=>{im.src=s.img;im.style.opacity=1},300)}}
-function drawSp(){const L=S.spons.list.filter(s=>s.img);$('sp').classList.toggle('h',!(S.spons.on&&L.length));showSp()}
+function drawSp(){const L=S.spons.list.filter(s=>s.img),emp=!L.length;$('sp').classList.toggle('h',!(S.spons.on&&(L.length||!OUT)));$('sp').classList.toggle('emp',emp);if(emp){$('spl').textContent=S.spons.label||'';$('spn').textContent='Sin auspiciadores';$('spi').style.display='none'}else{$('spi').style.display='block';showSp()}}
 function draw(){
  const st=$('st');st.style.setProperty('--c1',S.theme.c1);st.style.setProperty('--c2',S.theme.c2);
  $('bdg').style.display=S.live?'':'none';$('ck').style.display=S.clockOn?'':'none';$('tm').style.display=S.timerOn?'':'none';
@@ -150,7 +151,7 @@ function draw(){
 }
 const f2=n=>String(n).padStart(2,'0');
 function tick(){
- if(S.spons.on&&Date.now()-spT>=Math.max(2,+S.spons.secs||5)*1000){spT=Date.now();spI++;showSp()}
+ if(S.spons.on&&S.spons.list.length>1&&Date.now()-spT>=Math.max(2,+S.spons.secs||5)*1000){spT=Date.now();spI++;showSp()}
  const d=new Date();$('ck').textContent=f2(d.getHours())+':'+f2(d.getMinutes())+':'+f2(d.getSeconds());
  const t=S.timer,e=t.ms+(t.run?Date.now()-t.at:0),v=t.mode==='down'?Math.max(0,t.set-e):e,s=Math.floor(v/1000),h=Math.floor(s/3600);
  $('tm').textContent=(h?h+':':'')+f2(Math.floor(s%3600/60))+':'+f2(s%60);
@@ -191,8 +192,8 @@ if(OUT){
  $('cpy').onclick=()=>{try{navigator.clipboard.writeText(url());$('cpy').textContent='¡Copiado!'}catch(e){prompt('Enlace:',url())}};
  const keys={1:'lt.on',2:'tt.on',3:'poll.on',4:'logoOn',5:'clockOn',6:'timerOn',7:'live',8:'spons.on'};
  addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(keys[e.key])sv(keys[e.key],!g(keys[e.key]))});
- const rs=()=>{$('sl').innerHTML=S.spons.list.map((s,i)=>'<div class="row"><img src="'+esc(s.img)+'" style="height:34px;max-width:70px;object-fit:contain;background:#fff;border-radius:4px"><input value="'+esc(s.name)+'" data-j="'+i+'"><button data-d="'+i+'">✕</button></div>').join('')||'<div class="small">Sin auspiciadores todavía.</div>'};
- $('sf').onchange=async e=>{for(const fl of e.target.files){const u=await new Promise(r=>{const x=new FileReader();x.onload=()=>r(x.result);x.readAsDataURL(fl)});const im=await resize(u);if(im)S.spons.list.push({img:im,name:fl.name.replace(/\.[^.]+$/,'')})}e.target.value='';S.spons.on=true;rs();save()};
+ const rs=()=>{$('sl').innerHTML=S.spons.list.map((s,i)=>'<div class="row"><img src="'+esc(s.img)+'" style="height:34px;max-width:70px;object-fit:contain;background:#fff;border-radius:4px"><input value="'+esc(s.name)+'" data-j="'+i+'"><button data-d="'+i+'">✕</button></div>').join('')||'<div class="small">Sin auspiciadores todavía.</div>';const n=S.spons.list.length;$('ss').textContent=n===0?'⚠ Aún no hay auspiciadores: sube al menos un logo para que salga en pantalla (en la vista previa se ve un recuadro de aviso).':n===1?'1 auspiciador: se muestra fijo, sin rotar.':n+' auspiciadores: rotan cada '+Math.max(2,+S.spons.secs||5)+' s.'};
+ $('sf').onchange=async e=>{for(const fl of e.target.files){const u=await new Promise(r=>{const x=new FileReader();x.onload=()=>r(x.result);x.readAsDataURL(fl)});const im=await resize(u);if(im)S.spons.list.push({img:im,name:''})}e.target.value='';S.spons.on=true;rs();save()};
  $('su').onclick=()=>{const u=$('suu').value.trim();if(u){S.spons.list.push({img:u,name:''});$('suu').value='';S.spons.on=true;rs();save()}};
  $('sl').oninput=e=>{if(e.target.dataset.j!==undefined){S.spons.list[+e.target.dataset.j].name=e.target.value;save()}};
  $('sl').onclick=e=>{const d=e.target.dataset.d;if(d!==undefined){S.spons.list.splice(+d,1);rs();save()}};
