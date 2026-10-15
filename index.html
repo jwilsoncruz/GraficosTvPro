@@ -10,7 +10,7 @@
 html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Arial,sans-serif}
 body.out{background:transparent!important}
 body.out #ctl{display:none}
-body:not(.out) #st{display:none}
+#pvw #st{position:absolute}
 body.out,:root:has(body.out){padding:0}
 #ctl{max-width:1100px;margin:0 auto;padding:14px}
 h1{font-size:20px;margin:0 0 10px}
@@ -59,18 +59,23 @@ button.on{background:#16a34a;border-color:#16a34a;color:#fff}
 #poll .b i{display:block;height:100%;background:#9ca3af;transition:width .8s cubic-bezier(.2,.9,.2,1)}
 #poll .top i{background:var(--c1)}
 #poll .t{font-size:20px;opacity:.7;margin-top:8px}
+#sp{right:40px;bottom:150px;width:340px;background:#fff;color:#111;border-bottom:8px solid var(--c1);padding:10px 16px 12px;text-align:center;box-shadow:0 6px 24px #0007}
+#sp.h{transform:translateY(300%)}
+#spl{font-size:18px;font-weight:800;letter-spacing:.15em;color:var(--c1)}
+#spi{display:block;margin:6px auto;max-width:300px;max-height:130px;transition:opacity .3s}
+#spn{font-size:18px;font-weight:600}
 </style></head>
 <body>
 <div id="ctl">
  <h1>📺 Gráficos TV PRO</h1>
  <div class="grid">
   <div>
-   <div class="card"><h2>Vista previa (16:9)</h2><div id="pvw"><iframe id="pv"></iframe></div>
+   <div class="card"><h2>Vista previa (16:9)</h2><div id="pvw"></div>
     <div class="row"><button id="opn">Abrir salida para OBS</button><button id="cpy">Copiar enlace</button></div>
-    <div class="small">Atajos: 1 Medio tercio · 2 Título · 3 Encuesta · 4 Logo · 5 Hora · 6 Tiempo · 7 EN VIVO</div></div>
+    <div class="small">Atajos: 1 Medio tercio · 2 Título · 3 Encuesta · 4 Logo · 5 Hora · 6 Tiempo · 7 EN VIVO · 8 Auspiciadores</div></div>
    <div class="card"><h2>En pantalla</h2><div class="tg">
     <button data-t="lt.on">1 Medio tercio</button><button data-t="tt.on">2 Título</button><button data-t="poll.on">3 Encuesta</button>
-    <button data-t="logoOn">4 Logo</button><button data-t="clockOn">5 Hora</button><button data-t="timerOn">6 Tiempo</button><button data-t="live">7 EN VIVO</button></div></div>
+    <button data-t="logoOn">4 Logo</button><button data-t="clockOn">5 Hora</button><button data-t="timerOn">6 Tiempo</button><button data-t="live">7 EN VIVO</button><button data-t="spons.on">8 Auspiciadores</button></div></div>
    <div class="card"><h2>Colores y logo</h2>
     <div class="row"><span>Principal</span><input type="color" data-k="theme.c1"><span>Fondo</span><input type="color" data-k="theme.c2"></div>
     <label>Logo (subir imagen)</label><input type="file" id="lf" accept="image/*">
@@ -84,6 +89,7 @@ button.on{background:#16a34a;border-color:#16a34a;color:#fff}
     <div class="row"><button id="ts">▶ Iniciar</button><button id="tp">⏸ Pausa</button><button id="tr">⟲ Reiniciar</button></div></div>
    <div class="card"><h2>Encuesta / votación</h2><label>Pregunta</label><input data-k="poll.q">
     <div id="pl"></div><div class="row"><button id="pa">+ Opción</button><button id="pz">Votos a 0</button></div></div>
+   <div class="card"><h2>Auspiciadores</h2><label>Etiqueta</label><input data-k="spons.label"><label>Segundos por logo</label><input type="number" min="2" data-k="spons.secs"><label>Subir logos (varios a la vez)</label><input type="file" id="sf" accept="image/*" multiple><div class="row"><input id="suu" placeholder="o enlace de imagen https://..."><button id="su">Agregar</button></div><div id="sl"></div></div>
   </div>
  </div>
 </div>
@@ -94,6 +100,7 @@ button.on{background:#16a34a;border-color:#16a34a;color:#fff}
  <div id="lt"><div id="ltn"></div><div id="lts"></div></div>
  <div id="tt"><div id="ttt"></div><div id="ttk"><span id="tks"></span></div></div>
  <div id="poll"></div>
+ <div id="sp"><div id="spl">AUSPICIA</div><img id="spi" alt=""><div id="spn"></div></div>
 </div>
 
 <script>
@@ -101,7 +108,8 @@ const D={theme:{c1:'#e11d48',c2:'#111827'},logo:'',logoUrl:'',logoOn:false,clock
  timer:{mode:'down',set:300000,ms:0,run:false,at:0},
  lt:{on:false,name:'Nombre Apellido',sub:'Cargo o descripción'},
  tt:{on:false,title:'TÍTULO DE LA TRANSMISIÓN',ticker:'Bienvenidos a nuestra transmisión en vivo · Síguenos en nuestras redes sociales'},
- poll:{on:false,q:'¿Qué opinas?',opts:[{t:'Sí',v:0},{t:'No',v:0}]}};
+ poll:{on:false,q:'¿Qué opinas?',opts:[{t:'Sí',v:0},{t:'No',v:0}]},
+ spons:{on:false,secs:5,label:'AUSPICIA',list:[]}};
 const OUT=location.hash==='#output';
 let S;
 try{S=Object.assign({},D,JSON.parse(localStorage.getItem('gfx')||'{}'))}catch(e){S=JSON.parse(JSON.stringify(D))}
@@ -113,13 +121,15 @@ function save(){
  try{localStorage.setItem('gfx',JSON.stringify(S))}catch(e){}
  try{bc&&bc.postMessage(S)}catch(e){}
  try{pv.contentWindow&&pv.contentWindow.postMessage({gfx:S},'*')}catch(e){}
- if(OUT)draw();else btns();
+ draw();if(!OUT)btns();
 }
 const g=p=>p.split('.').reduce((o,k)=>o[k],S);
 const sv=(p,v)=>{const a=p.split('.'),l=a.pop();a.reduce((o,k)=>o[k],S)[l]=v;save()};
 function fit(el,box){const s=box.clientWidth/1920;el.style.transform='scale('+s+')'}
 /* ---------- Salida ---------- */
-let lastTk='',lastPoll='';
+let lastTk='',lastPoll='',spI=0,spT=Date.now();
+function showSp(){const L=S.spons.list.filter(s=>s.img);if(!L.length)return;spI%=L.length;const s=L[spI],im=$('spi');$('spl').textContent=S.spons.label||'';$('spn').textContent=s.name||'';if(im.getAttribute('src')!==s.img){im.style.opacity=0;setTimeout(()=>{im.src=s.img;im.style.opacity=1},300)}}
+function drawSp(){const L=S.spons.list.filter(s=>s.img);$('sp').classList.toggle('h',!(S.spons.on&&L.length));showSp()}
 function draw(){
  const st=$('st');st.style.setProperty('--c1',S.theme.c1);st.style.setProperty('--c2',S.theme.c2);
  $('bdg').style.display=S.live?'':'none';$('ck').style.display=S.clockOn?'':'none';$('tm').style.display=S.timerOn?'':'none';
@@ -135,10 +145,12 @@ function draw(){
   return '<div class="o'+(o.v===mx&&mx>0?' top':'')+'"><div class="l"><span>'+esc(o.t)+'</span><b>'+p+'%</b></div><div class="b"><i style="width:'+p+'%"></i></div></div>'}).join('')+'<div class="t">'+tot+' votos</div>';
  if(h!==lastPoll){lastPoll=h;$('poll').innerHTML=h}
  $('poll').classList.toggle('h',!S.poll.on);
+ drawSp();
  tick();
 }
 const f2=n=>String(n).padStart(2,'0');
 function tick(){
+ if(S.spons.on&&Date.now()-spT>=Math.max(2,+S.spons.secs||5)*1000){spT=Date.now();spI++;showSp()}
  const d=new Date();$('ck').textContent=f2(d.getHours())+':'+f2(d.getMinutes())+':'+f2(d.getSeconds());
  const t=S.timer,e=t.ms+(t.run?Date.now()-t.at:0),v=t.mode==='down'?Math.max(0,t.set-e):e,s=Math.floor(v/1000),h=Math.floor(s/3600);
  $('tm').textContent=(h?h+':':'')+f2(Math.floor(s%3600/60))+':'+f2(s%60);
@@ -156,9 +168,9 @@ if(OUT){
  addEventListener('storage',e=>{if(e.key==='gfx'){try{S=JSON.parse(e.newValue);draw()}catch(x){}}});
  draw();setInterval(tick,200);
 }else{
- pv.src=location.href.split('#')[0]+'#output';
- pv.onload=()=>save();
- const f=()=>fit(pv,$('pvw'));addEventListener('resize',f);f();
+ $('pvw').appendChild($('st'));
+ draw();setInterval(tick,200);
+ const f=()=>fit($('st'),$('pvw'));addEventListener('resize',f);f();
  document.querySelectorAll('[data-k]').forEach(e=>{try{e.value=g(e.dataset.k)}catch(x){}
   e.oninput=()=>sv(e.dataset.k,e.value)});
  document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>sv(b.dataset.t,!g(b.dataset.t)));
@@ -177,8 +189,13 @@ if(OUT){
  const url=()=>location.href.split('#')[0]+'#output';
  $('opn').onclick=()=>window.open(url(),'_blank');
  $('cpy').onclick=()=>{try{navigator.clipboard.writeText(url());$('cpy').textContent='¡Copiado!'}catch(e){prompt('Enlace:',url())}};
- const keys={1:'lt.on',2:'tt.on',3:'poll.on',4:'logoOn',5:'clockOn',6:'timerOn',7:'live'};
+ const keys={1:'lt.on',2:'tt.on',3:'poll.on',4:'logoOn',5:'clockOn',6:'timerOn',7:'live',8:'spons.on'};
  addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(keys[e.key])sv(keys[e.key],!g(keys[e.key]))});
- rp();btns();
+ const rs=()=>{$('sl').innerHTML=S.spons.list.map((s,i)=>'<div class="row"><img src="'+esc(s.img)+'" style="height:34px;max-width:70px;object-fit:contain;background:#fff;border-radius:4px"><input value="'+esc(s.name)+'" data-j="'+i+'"><button data-d="'+i+'">✕</button></div>').join('')||'<div class="small">Sin auspiciadores todavía.</div>'};
+ $('sf').onchange=async e=>{for(const fl of e.target.files){const u=await new Promise(r=>{const x=new FileReader();x.onload=()=>r(x.result);x.readAsDataURL(fl)});const im=await resize(u);if(im)S.spons.list.push({img:im,name:fl.name.replace(/\.[^.]+$/,'')})}e.target.value='';S.spons.on=true;rs();save()};
+ $('su').onclick=()=>{const u=$('suu').value.trim();if(u){S.spons.list.push({img:u,name:''});$('suu').value='';S.spons.on=true;rs();save()}};
+ $('sl').oninput=e=>{if(e.target.dataset.j!==undefined){S.spons.list[+e.target.dataset.j].name=e.target.value;save()}};
+ $('sl').onclick=e=>{const d=e.target.dataset.d;if(d!==undefined){S.spons.list.splice(+d,1);rs();save()}};
+ rp();rs();btns();
 }
 </script></body></html>
